@@ -75,7 +75,9 @@ namespace Nocco
             var docsText = new StringBuilder();
             var codeText = new StringBuilder();
 
-            Action<string, string> save = (docs, code) => sections.Add(new Section { DocsHtml = docs, CodeHtml = code });
+            int sectionIndexCounter = 1;
+
+            Action<string, string> save = (docs, code) => sections.Add(new Section { DocsHtml = docs, CodeHtml = code, Index = sectionIndexCounter++ });
             Func<string, string> mapToMarkdown = docs =>
             {
                 if (language.MarkdownMaps != null)
@@ -126,17 +128,11 @@ namespace Nocco
         // found in `Resources/Nocco.cshtml`
         private static void GenerateHtml(string source, List<Section> sections)
         {
-            int depth;
-            var destination = GetDestination(source, out depth);
-
-            string pathToRoot = string.Concat(Enumerable.Repeat(".." + Path.DirectorySeparatorChar, depth));
+            var destination = GetDestination(source);
 
             var htmlTemplate = Activator.CreateInstance(_templateType) as TemplateBase;
 
             htmlTemplate.Title = Path.GetFileName(source);
-            htmlTemplate.PathToCss = Path.Combine(pathToRoot, "nocco.css").Replace('\\', '/');
-            htmlTemplate.PathToJs = Path.Combine(pathToRoot, "prettify.js").Replace('\\', '/');
-            htmlTemplate.GetSourcePath = s => Path.Combine(pathToRoot, Path.ChangeExtension(s.ToLower(), ".html").Substring(2)).Replace('\\', '/');
             htmlTemplate.Sections = sections;
             htmlTemplate.Sources = _files;
 
@@ -200,7 +196,7 @@ namespace Nocco
         private static Dictionary<string, Language> Languages = new Dictionary<string, Language> {
 			{ ".js", new Language {
 				Name = "javascript",
-				Symbol = "//",
+				Symbol = "//!",
 				Ignores = new List<string> {
 					"min.js"
 				}
@@ -244,18 +240,10 @@ namespace Nocco
 
         // Compute the destination HTML path for an input source file path. If the source
         // is `Example.cs`, the HTML will be at `docs/example.html`
-        private static string GetDestination(string filepath, out int depth)
+        private static string GetDestination(string filepath)
         {
-            depth = 1;
-            var dest = Path.Combine(Path.GetDirectoryName(filepath), "docs", Path.ChangeExtension(Path.GetFileName(filepath), "html"));
-            //var dirs = Path.GetDirectoryName(filepath).Substring(1).Split(new[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
-            //depth = dirs.Length;
-
-            //var dest = Path.Combine("docs", string.Join(Path.DirectorySeparatorChar.ToString(), dirs)).ToLower();
-            //Directory.CreateDirectory(dest);
-
-            //return Path.Combine("docs", Path.ChangeExtension(filepath, "html").ToLower());
-
+            
+            var dest = Path.Combine("docs", Path.ChangeExtension(Path.GetFileName(filepath), "html"));
             if (!Directory.Exists(Path.GetDirectoryName(dest)))
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(dest));
@@ -273,8 +261,6 @@ namespace Nocco
                 Directory.CreateDirectory("docs");
 
                 _executingDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                File.Copy(Path.Combine(_executingDirectory, "Resources", "Nocco.css"), Path.Combine("docs", "nocco.css"), true);
-                File.Copy(Path.Combine(_executingDirectory, "Resources", "prettify.js"), Path.Combine("docs", "prettify.js"), true);
 
                 _templateType = SetupRazorTemplate();
 
