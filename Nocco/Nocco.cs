@@ -57,12 +57,12 @@ namespace Nocco
         // Generate the documentation for a source file by reading it in, splitting it
         // up into comment/code sections, highlighting them for the appropriate language,
         // and merging them into an HTML template.
-        private static void GenerateDocumentation(string source)
+        private static string GenerateDocumentation(string source)
         {
             var lines = File.ReadAllLines(source);
             var sections = Parse(source, lines);
             Hightlight(sections);
-            GenerateHtml(source, sections);
+            return GenerateHtml(source, sections);
         }
 
         // Given a string of source code, parse out each comment and the code that
@@ -126,10 +126,8 @@ namespace Nocco
         // Once all of the code is finished highlighting, we can generate the HTML file
         // and write out the documentation. Pass the completed sections into the template
         // found in `Resources/Nocco.cshtml`
-        private static void GenerateHtml(string source, List<Section> sections)
+        private static string GenerateHtml(string source, List<Section> sections)
         {
-            var destination = GetDestination(source);
-
             var htmlTemplate = Activator.CreateInstance(_templateType) as TemplateBase;
 
             htmlTemplate.Title = Path.GetFileName(source);
@@ -138,7 +136,7 @@ namespace Nocco
 
             htmlTemplate.Execute();
 
-            File.WriteAllText(destination, htmlTemplate.Buffer.ToString());
+            return htmlTemplate.Buffer.ToString();
         }
 
         //### Helpers & Setup
@@ -196,7 +194,7 @@ namespace Nocco
         private static Dictionary<string, Language> Languages = new Dictionary<string, Language> {
 			{ ".js", new Language {
 				Name = "javascript",
-				Symbol = "//!",
+				Symbol = "//",
 				Ignores = new List<string> {
 					"min.js"
 				}
@@ -231,31 +229,36 @@ namespace Nocco
 			}}
 		};
 
+        private static string _prefixOverwrite;
+
         // Get the current language we're documenting, based on the extension.
         private static Language GetLanguage(string source)
         {
             var extension = Path.GetExtension(source);
-            return Languages.ContainsKey(extension) ? Languages[extension] : null;
-        }
+            var language = Languages.ContainsKey(extension) ? Languages[extension] : null;
 
-        // Compute the destination HTML path for an input source file path. If the source
-        // is `Example.cs`, the HTML will be at `docs/example.html`
-        private static string GetDestination(string filepath)
-        {
-            
-            var dest = Path.Combine("docs", Path.ChangeExtension(Path.GetFileName(filepath), "html"));
-            if (!Directory.Exists(Path.GetDirectoryName(dest)))
+            // Return a copy of the language so generator can safly overwrite properties
+            if (language == null)
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(dest));
+                return null;
             }
+            else
+            {
+                language = new Language() { Ignores = language.Ignores, MarkdownMaps = language.MarkdownMaps, Name = language.Name, Symbol = language.Symbol };
+                if (!string.IsNullOrEmpty(_prefixOverwrite))
+                {
+                    language.Symbol = _prefixOverwrite;
+                }
 
-            return dest;
+                return language;
+            }
         }
 
         // Find all the files that match the pattern(s) passed in as arguments and
         // generate documentation for each one.
-        public static void Generate(string[] targets)
+        public static IEnumerable<Documentation> Generate(string[] targets, string prefixOverwrite)
         {
+            _prefixOverwrite = prefixOverwrite;
             if (targets.Length > 0)
             {
                 Directory.CreateDirectory("docs");
@@ -267,6 +270,10 @@ namespace Nocco
                 _files = new List<string>(targets.Where(filename =>
                 {
                     var language = GetLanguage(Path.GetFileName(filename));
+                    if (!string.IsNullOrEmpty(prefixOverwrite))
+                    {
+                        language.Symbol = prefixOverwrite;
+                    }
 
                     if (language == null)
                         return false;
@@ -284,9 +291,16 @@ namespace Nocco
                 }));
 
 
-                foreach (var file in _files)
-                    GenerateDocumentation(file);
+                foreach (var file in _files) 
+                    yield return new Documentation { Content = GenerateDocumentation(file), File = file };
             }
         }
+    }
+
+    public class Documentation
+    {
+        public string File { get; set; }
+
+        public string Content { get; set; }
     }
 }
