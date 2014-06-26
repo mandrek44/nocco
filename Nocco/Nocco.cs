@@ -157,7 +157,8 @@ namespace Nocco
             host.NamespaceImports.Add("System");
 
             GeneratorResults razorResult = null;
-            using (var reader = new StreamReader(Path.Combine(_executingDirectory, "Resources", "Nocco.cshtml")))
+
+            using (var reader = new StreamReader(new MemoryStream(Resource.Nocco)))
             {
                 razorResult = new RazorTemplateEngine(host).GenerateCode(reader);
             }
