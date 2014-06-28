@@ -1,7 +1,9 @@
 ﻿// The entrance point for the program.  Just run Nocco!
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using NDesk.Options;
 
@@ -30,6 +32,28 @@ namespace Nocco
             if (verbose)
             {
                 Console.WriteLine("Prefix: {0}, Output dir: {1}", prefix, dir);
+            }
+
+            if (!notHandledArgs.Any())
+            {
+                List<string> lines = new List<string>();
+                string inputLine = string.Empty;
+
+                do
+                {
+                    inputLine = Console.ReadLine();
+                    if (!string.IsNullOrEmpty(inputLine))
+                    {
+                        lines.Add(inputLine);
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                while (true);
+
+                notHandledArgs = lines;
             }
 
             var reports = Nocco.Generate(notHandledArgs.ToArray(), prefix);
