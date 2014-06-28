@@ -15,15 +15,22 @@ namespace Nocco
             bool help = false;
             bool console = false;
             string dir = "docs";
+            bool verbose = false;
             var options = new OptionSet()
                             {
                                 { "c|console", v => console = v != null },
                                 { "p|prefix=", v => prefix = v},
                                 { "o|output=", v => dir = v},
-                                { "h|?|help", v => help = v != null}
+                                { "h|?|help", v => help = v != null},
+                                { "v|verbose", v => verbose = v != null }
                             };
 
             var notHandledArgs = options.Parse(args);
+
+            if (verbose)
+            {
+                Console.WriteLine("Prefix: {0}, Output dir: {1}", prefix, dir);
+            }
 
             var reports = Nocco.Generate(notHandledArgs.ToArray(), prefix);
             if (console)

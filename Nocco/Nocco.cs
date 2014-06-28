@@ -85,9 +85,11 @@ namespace Nocco
                 return docs;
             };
 
+            var commentMatcher = language.CommentMatcher;
+
             foreach (var line in lines)
-            {
-                if (language.CommentMatcher.IsMatch(line) && !language.CommentFilter.IsMatch(line))
+            {             
+                if (commentMatcher.IsMatch(line) && !language.CommentFilter.IsMatch(line))
                 {
                     if (hasCode)
                     {
@@ -96,7 +98,7 @@ namespace Nocco
                         docsText = new StringBuilder();
                         codeText = new StringBuilder();
                     }
-                    docsText.AppendLine(language.CommentMatcher.Replace(line, ""));
+                    docsText.AppendLine(commentMatcher.Replace(line, ""));
                 }
                 else
                 {
