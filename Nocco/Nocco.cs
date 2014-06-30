@@ -59,10 +59,30 @@ namespace Nocco
         // and merging them into an HTML template.
         private static string GenerateDocumentation(string source)
         {
+            return GenerateHtml(Path.GetFileName(source), GenerateSections(source));
+        }
+
+        private static List<Section> GenerateSections(string source)
+        {
             var lines = File.ReadAllLines(source);
             var sections = Parse(source, lines);
             Hightlight(sections);
-            return GenerateHtml(source, sections);
+            return sections;
+        }
+
+        private static string GenerateDocumentation(List<string> sources)
+        {
+            return GenerateHtml("Report", sources.SelectMany(
+                source =>
+                {
+                    var sections = GenerateSections(source);
+                    if (sections.Skip(1).All(section => string.IsNullOrWhiteSpace(section.DocsHtml)))
+                    {
+                        return new List<Section>();
+                    }
+
+                    return sections;
+                }).ToList());
         }
 
         // Given a string of source code, parse out each comment and the code that
@@ -86,6 +106,7 @@ namespace Nocco
             };
 
             var commentMatcher = language.CommentMatcher;
+            save(mapToMarkdown("#" + Path.GetFileName(source)), string.Empty);
 
             foreach (var line in lines)
             {             
@@ -128,11 +149,11 @@ namespace Nocco
         // Once all of the code is finished highlighting, we can generate the HTML file
         // and write out the documentation. Pass the completed sections into the template
         // found in `Resources/Nocco.cshtml`
-        private static string GenerateHtml(string source, List<Section> sections)
+        private static string GenerateHtml(string title, List<Section> sections)
         {
             var htmlTemplate = Activator.CreateInstance(_templateType) as TemplateBase;
 
-            htmlTemplate.Title = Path.GetFileName(source);
+            htmlTemplate.Title = title;
             htmlTemplate.Sections = sections;
             htmlTemplate.Sources = _files;
 
@@ -204,7 +225,7 @@ namespace Nocco
 			}},
 			{ ".cs", new Language {
 				Name = "csharp",
-				Symbol = "///?",
+				Symbol = "///",
 				Ignores = new List<string> {
 					"Designer.cs"
 				},
@@ -238,7 +259,7 @@ namespace Nocco
         private static Language GetLanguage(string source)
         {
             var extension = Path.GetExtension(source);
-            var language = Languages.ContainsKey(extension) ? Languages[extension] : null;
+            var language = Languages.ContainsKey(extension) ? Languages[extension] : Languages[".js"];
 
             // Return a copy of the language so generator can safly overwrite properties
             if (language == null)
@@ -259,7 +280,7 @@ namespace Nocco
 
         // Find all the files that match the pattern(s) passed in as arguments and
         // generate documentation for each one.
-        public static IEnumerable<Documentation> Generate(string[] targets, string prefixOverwrite)
+        public static IEnumerable<Documentation> Generate(string[] targets, string prefixOverwrite, bool singleFile = false)
         {
             _prefixOverwrite = prefixOverwrite;
             if (targets.Length > 0)
@@ -294,8 +315,15 @@ namespace Nocco
                 }));
 
 
-                foreach (var file in _files) 
-                    yield return new Documentation { Content = GenerateDocumentation(file), File = file };
+                if (!singleFile)
+                {
+                    foreach (var file in _files) yield return new Documentation { Content = GenerateDocumentation(file), File = file };
+                }
+                else
+                {
+                    yield return new Documentation { File = "report.html", Content = GenerateDocumentation(_files) };
+                }
+
             }
         }
     }

@@ -18,13 +18,15 @@ namespace Nocco
             bool console = false;
             string dir = "docs";
             bool verbose = false;
+            bool singleFile = false;
             var options = new OptionSet()
                             {
                                 { "c|console", v => console = v != null },
                                 { "p|prefix=", v => prefix = v},
                                 { "o|output=", v => dir = v},
                                 { "h|?|help", v => help = v != null},
-                                { "v|verbose", v => verbose = v != null }
+                                { "v|verbose", v => verbose = v != null },
+                                { "s|single", v => singleFile = v != null}
                             };
 
             var notHandledArgs = options.Parse(args);
@@ -56,7 +58,7 @@ namespace Nocco
                 notHandledArgs = lines;
             }
 
-            var reports = Nocco.Generate(notHandledArgs.ToArray(), prefix);
+            var reports = Nocco.Generate(notHandledArgs.ToArray(), prefix, singleFile);
             if (console)
             {
                 foreach (var report in reports)
